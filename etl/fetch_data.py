@@ -1,11 +1,19 @@
 import os
 import json
+from kaggle.api.kaggle_api_extended import KaggleApi
 from supabase import create_client
 
-# Authenticatie
+# 1. Authenticatie voor Kaggle en Supabase
+api = KaggleApi()
+api.authenticate()
+
 sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
-# Zoek direct in de juiste map
+# 2. Downloaden van de dataset
+print("Start downloaden van Kaggle...")
+api.dataset_download_files('saurabhshahane/statsbomb-football-data', path='./data', unzip=True)
+
+# 3. Uploaden naar Supabase
 matches_dir = './data/data/matches'
 count = 0
 
