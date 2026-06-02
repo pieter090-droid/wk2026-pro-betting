@@ -65,14 +65,12 @@ OF_SOURCES = [
     # Euro
     ("openfootball/euro.json/master/2024/euro.json",
      "UEFA Euro 2024", 2, "tournament"),
-    # Internationals (friendlies + kwalificatie via Mart Jürisoo dataset)
-    ("openfootball/internationals/master/2022/intls.txt",
-     "Internationals 2022", 4, "friendly"),
-    ("openfootball/internationals/master/2023/intls.txt",
-     "Internationals 2023", 4, "friendly"),
-    ("openfootball/internationals/master/2024/intls.txt",
-     "Internationals 2024", 4, "friendly"),
 ]
+
+# Mart Jürisoo dataset — alle internationale wedstrijden t/m 2026 incl. friendlies
+# Kolommen: date, home_team, away_team, home_score, away_score, tournament, city, country, neutral
+MARTJ42_URL      = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
+MARTJ42_MIN_DATE = "2022-01-01"
 
 # StatsBomb internationale competitie IDs
 SB_INTL_COMP_IDS = {43, 55, 223, 246, 72, 285}
@@ -420,19 +418,15 @@ def parse_of_txt(text: str, comp_name: str, level: int, match_type: str) -> int:
 
 
 def load_openfootball():
-    print("\n[2/2] OpenFootball laden...")
+    print("\n[2/2] OpenFootball JSON laden (WK + Euro)...")
     total = 0
 
     for path, comp_name, level, match_type in OF_SOURCES:
         url = f"{OF_BASE}/{path}"
         print(f"  {comp_name}...")
         try:
-            if path.endswith(".json"):
-                data  = fetch_json(url)
-                count = parse_of_json(data, comp_name, level, match_type)
-            else:
-                text  = fetch_text(url)
-                count = parse_of_txt(text, comp_name, level, match_type)
+            data  = fetch_json(url)
+            count = parse_of_json(data, comp_name, level, match_type)
             print(f"    ✓ {count} wedstrijden")
             total += count
             time.sleep(DELAY)
@@ -443,21 +437,144 @@ def load_openfootball():
     return total
 
 
+def load_martj42():
+    """
+    Laad alle internationale wedstrijden via martj42/international_results.
+    Één CSV met 49.000+ wedstrijden inclusief friendlies, kwalificatie en WK.
+    Kolommen: date, home_team, away_team, home_score, away_score,
+              tournament, city, country, neutral
+    """
+    import csv
+    import io
+
+    print("\n[3/3] Mart Jürisoo internationale dataset laden...")
+    print(f"      Bron: martj42/international_results (t/m 2026)")
+
+    try:
+        resp = session.get(MARTJ42_URL, timeout=60)
+        resp.raise_for_status()
+    except Exception as e:
+        print(f"  ⚠ Fout bij ophalen: {e}")
+        return 0
+
+    reader = csv.DictReader(io.StringIO(resp.text))
+    total  = 0
+    batch_matches = []
+    batch_stats   = []
+    batch_h2h     = []
+
+    for row in reader:
+        mdate = row.get("date", "")
+        if mdate < MARTJ42_MIN_DATE:
+            continue
+
+        home    = row.get("home_team", "").strip()
+        away    = row.get("away_team", "").strip()
+        if not has_wk_team(home, away):
+            continue
+
+        try:
+            home_sc = int(row.get("home_score", ""))
+            away_sc = int(row.get("away_score", ""))
+        except (ValueError, TypeError):
+            continue  # sla wedstrijden zonder score over
+
+        tournament = row.get("tournament", "").strip()
+        neutral    = row.get("neutral", "").strip().lower() == "true"
+        city       = row.get("city", "").strip()
+        country    = row.get("country", "").strip()
+        level      = get_level(tournament)
+        match_type = (
+            "tournament"    if level <= 2 else
+            "qualification" if level == 3 else
+            "friendly"
+        )
+        mid = f"mj_{mdate}_{home.replace(' ', '_')}_{away.replace(' ', '_')}"
+
+        batch_matches.append({
+            "match_id":          mid,
+            "source":            "martj42",
+            "competition":       tournament,
+            "competition_level": level,
+            "season":            mdate[:4],
+            "match_date":        mdate,
+            "home_team":         home,
+            "away_team":         away,
+            "home_score":        home_sc,
+            "away_score":        away_sc,
+            "venue":             f"{city}, {country}" if city else None,
+            "neutral_ground":    neutral,
+            "match_type":        match_type,
+            "raw_data":          dict(row),
+        })
+
+        winner = home if home_sc > away_sc else (away if away_sc > home_sc else "Draw")
+
+        for team, is_home, goals, conceded in [
+            (home, True,  home_sc, away_sc),
+            (away, False, away_sc, home_sc),
+        ]:
+            if team not in WK2026_TEAMS:
+                continue
+            result = "W" if goals > conceded else ("D" if goals == conceded else "L")
+            batch_stats.append({
+                "match_id":       mid,
+                "team":           team,
+                "is_home":        is_home,
+                "goals":          goals,
+                "goals_conceded": conceded,
+                "result":         result,
+            })
+
+        if home in WK2026_TEAMS and away in WK2026_TEAMS:
+            batch_h2h.extend([
+                {"match_id": mid, "team_a": home, "team_b": away,
+                 "match_date": mdate, "team_a_score": home_sc,
+                 "team_b_score": away_sc, "winner": winner,
+                 "competition_level": level},
+                {"match_id": mid, "team_a": away, "team_b": home,
+                 "match_date": mdate, "team_a_score": away_sc,
+                 "team_b_score": home_sc, "winner": winner,
+                 "competition_level": level},
+            ])
+
+        total += 1
+
+        # Upload per batch
+        if len(batch_matches) >= BATCH_SIZE:
+            upsert("matches",      batch_matches, "match_id")
+            upsert("team_stats",   batch_stats,   "match_id,team")
+            upsert("head_to_head", batch_h2h,     "match_id,team_a,team_b")
+            batch_matches, batch_stats, batch_h2h = [], [], []
+            print(f"    ✓ {total} wedstrijden verwerkt...")
+
+    # Restant
+    if batch_matches:
+        upsert("matches",      batch_matches, "match_id")
+        upsert("team_stats",   batch_stats,   "match_id,team")
+        upsert("head_to_head", batch_h2h,     "match_id,team_a,team_b")
+
+    print(f"      ✓ {total} wedstrijden uit Mart Jürisoo dataset")
+    return total
+
+
 # ── Hoofdlogica ───────────────────────────────────────────────────────────────
 
 def run():
     print("=" * 55)
-    print("  WK2026 ETL — StatsBomb + OpenFootball")
+    print("  WK2026 ETL — StatsBomb + OpenFootball + Mart Jürisoo")
     print("=" * 55)
 
     sb_total = load_statsbomb()
     of_total = load_openfootball()
+    mj_total = load_martj42()
 
     print(f"\n{'=' * 55}")
     print(f"  Klaar!")
     print(f"  StatsBomb:    {sb_total} wedstrijden (met xG/stats)")
-    print(f"  OpenFootball: {of_total} wedstrijden (scores + datums)")
-    print(f"  Totaal:       {sb_total + of_total} wedstrijden")
+    print(f"  OpenFootball: {of_total} wedstrijden (WK/Euro JSON)")
+    print(f"  Mart Jürisoo: {mj_total} wedstrijden (alle interlands incl. friendlies)")
+    print(f"  Totaal:       {sb_total + of_total + mj_total} wedstrijden")
     print(f"\n  Check per team:")
     print(f"  SELECT team, COUNT(*), AVG(xg)")
     print(f"  FROM team_stats GROUP BY team ORDER BY 2 DESC;")
