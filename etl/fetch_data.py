@@ -1,11 +1,17 @@
 import os
-import json
+from kaggle.api.kaggle_api_extended import KaggleApi
 
-root_dir = './data'
-print(f"Start met scannen van map: {root_dir}")
+# 1. Authenticatie
+api = KaggleApi()
+api.authenticate()
 
-for root, dirs, files in os.walk(root_dir):
-    for file in files:
-        print(f"Gevonden bestand: {file} in map {root}")
+# 2. Download en expliciet uitpakken
+print("Start download...")
+api.dataset_download_files('saurabhshahane/statsbomb-football-data', path='./data', unzip=True)
 
-print("Scan voltooid.")
+# 3. Wacht tot we zeker weten dat er bestanden zijn
+print("Bestanden in huidige map:", os.listdir('.'))
+if os.path.exists('./data'):
+    print("Inhoud van ./data:", os.listdir('./data'))
+else:
+    print("Map ./data bestaat niet!")
