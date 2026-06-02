@@ -18,9 +18,8 @@ jobs:
       - name: Installeer dependencies
         run: pip install requests supabase
 
-      - name: Run gecombineerde ETL
+      - name: Run ETL
         run: python etl/fetch_combined.py
         env:
-          SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
-          FOOTBALL_DATA_KEY:  ${{ secrets.FOOTBALL_DATA_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
