@@ -1,0 +1,1 @@
+pandas, requests, supabase, python-dotenv, kaggle
