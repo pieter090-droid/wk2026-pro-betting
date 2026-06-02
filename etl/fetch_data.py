@@ -1,22 +1,23 @@
 import os
-from kaggle.api.kaggle_api_extended import KaggleApi
+import json
+from supabase import create_client
 
 # Authenticatie
-os.environ['KAGGLE_USERNAME'] = os.getenv('KAGGLE_USERNAME')
-os.environ['KAGGLE_KEY'] = os.getenv('KAGGLE_KEY')
-api = KaggleApi()
-api.authenticate()
+sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
-# Download de dataset
-api.dataset_download_files('saurabhshahane/statsbomb-football-data', path='./data', unzip=True)
+# Loop door de mappenstructuur die we in de logs zagen
+matches_dir = './data/data/matches'
+for root, dirs, files in os.walk(matches_dir):
+    for file in files:
+        if file.endswith('.json'):
+            file_path = os.path.join(root, file)
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                try:
+                    match_data = json.load(f)
+                    # We stoppen het hele JSON-object in de 'match_data' kolom
+                    sb.table("matches").insert({"match_data": match_data}).execute()
+                except Exception as e:
+                    print(f"Kon {file} niet verwerken: {e}")
 
-# HIER zie je de mappen en bestanden in de logs
-print("--- INHOUD VAN MAP 'data' ---")
-for root, dirs, files in os.walk('./data'):
-    for name in files:
-        print(os.path.join(root, name))
-print("-----------------------------")
-
-# DIT IS HET DEEL DAT NU NOG KAN FALEN
-# Pas dit pas aan als je de echte naam hierboven in de logs ziet!
-# df = pd.read_csv("./data/echte_naam.csv")
+print("Upload naar database voltooid!")
