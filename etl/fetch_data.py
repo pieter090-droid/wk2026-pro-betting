@@ -3,21 +3,25 @@ import json
 from supabase import create_client
 
 # Authenticatie
-sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+url = os.getenv("SUPABASE_URL")
+key = os.getenv("SUPABASE_KEY")
+sb = create_client(url, key)
 
-# Loop door de mappenstructuur die we in de logs zagen
 matches_dir = './data/data/matches'
+print(f"Zoeken in map: {matches_dir}")
+
+count = 0
 for root, dirs, files in os.walk(matches_dir):
     for file in files:
         if file.endswith('.json'):
             file_path = os.path.join(root, file)
-            
             with open(file_path, 'r', encoding='utf-8') as f:
                 try:
                     match_data = json.load(f)
-                    # We stoppen het hele JSON-object in de 'match_data' kolom
-                    sb.table("matches").insert({"match_data": match_data}).execute()
+                    # Upload naar Supabase
+                    response = sb.table("matches").insert({"match_data": match_data}).execute()
+                    count += 1
                 except Exception as e:
-                    print(f"Kon {file} niet verwerken: {e}")
+                    print(f"Fout bij bestand {file}: {e}")
 
-print("Upload naar database voltooid!")
+print(f"Klaar! Aantal bestanden verwerkt en geüpload: {count}")
