@@ -10,7 +10,13 @@ api.authenticate()
 # Download de dataset
 api.dataset_download_files('saurabhshahane/statsbomb-football-data', path='./data', unzip=True)
 
-# KIJK WAAR HET BESTAND IS
-print("Bestanden gevonden in map 'data':")
-for file in os.listdir('./data'):
-    print(file)
+# HIER zie je de mappen en bestanden in de logs
+print("--- INHOUD VAN MAP 'data' ---")
+for root, dirs, files in os.walk('./data'):
+    for name in files:
+        print(os.path.join(root, name))
+print("-----------------------------")
+
+# DIT IS HET DEEL DAT NU NOG KAN FALEN
+# Pas dit pas aan als je de echte naam hierboven in de logs ziet!
+# df = pd.read_csv("./data/echte_naam.csv")
