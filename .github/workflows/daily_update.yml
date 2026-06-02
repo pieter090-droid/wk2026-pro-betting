@@ -1,0 +1,25 @@
+name: Daily Update
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"   # elke dag om 06:00 UTC (optioneel)
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installeer dependencies
+        run: pip install requests supabase
+
+      - name: Run StatsBomb ETL
+        run: python etl/fetch_statsbomb.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
