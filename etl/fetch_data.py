@@ -1,27 +1,17 @@
 import os
-import json
-from supabase import create_client
+from kaggle.api.kaggle_api_extended import KaggleApi
 
-sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+# Authenticatie
+api = KaggleApi()
+api.authenticate()
 
-root_dir = './data'
-count = 0
+# Download
+print("Downloaden...")
+api.dataset_download_files('saurabhshahane/statsbomb-football-data', path='./data', unzip=True)
 
-print("Begin met zoeken naar ALLE .json bestanden...")
-
-for root, dirs, files in os.walk(root_dir):
+# Detectie: Loop door alles wat in ./data staat, ongeacht extensie
+print("--- START BESTANDSLIJST ---")
+for root, dirs, files in os.walk('./data'):
     for file in files:
-        if file.endswith('.json'):
-            file_path = os.path.join(root, file)
-            print(f"Verwerken: {file_path}")
-            
-            with open(file_path, 'r', encoding='utf-8') as f:
-                try:
-                    match_data = json.load(f)
-                    # We proberen de insert
-                    sb.table("matches").insert({"match_data": match_data}).execute()
-                    count += 1
-                except Exception as e:
-                    print(f"Fout bij {file_path}: {e}")
-
-print(f"Klaar! Totaal geüpload: {count}")
+        print(f"Gevonden: {os.path.join(root, file)}")
+print("--- EINDE BESTANDSLIJST ---")
