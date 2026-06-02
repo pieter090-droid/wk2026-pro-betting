@@ -33,7 +33,7 @@ for root, dirs, files in os.walk(matches_dir):
                 try:
                     match_data = json.load(f)
                     # We sturen de data naar de tabel 'matches'
-                    sb.table("matches").insert({"match_data": match_data}).execute()
+                    sb.from_("matches").insert({"match_data": match_data}).execute()
                     count += 1
                 except Exception as e:
                     print(f"Fout bij {file}: {e}")
