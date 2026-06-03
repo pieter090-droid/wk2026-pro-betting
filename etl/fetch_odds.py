@@ -199,11 +199,15 @@ def run():
     print("=" * 55)
 
     # Tournament ID ophalen (of uit env var)
-    wk_id = os.environ.get("ODDSPAPI_WK_ID")
-    if wk_id:
-        wk_id = int(wk_id)
+    # GitHub maskeert secrets als '***' in logs maar geeft ze correct door
+    # Toch valideren voor het geval het secret niet ingesteld is
+    wk_id_raw = os.environ.get("ODDSPAPI_WK_ID", "").strip()
+    if wk_id_raw and wk_id_raw.isdigit():
+        wk_id = int(wk_id_raw)
         print(f"[1/3] WK tournament ID uit env: {wk_id}")
     else:
+        if wk_id_raw:
+            print(f"[1/3] ODDSPAPI_WK_ID niet geldig, automatisch zoeken...")
         wk_id = get_wk_tournament_id()
 
     # Alle odds ophalen — 1 call
