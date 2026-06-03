@@ -1,0 +1,43 @@
+name: Find WK Tournament ID
+
+on:
+  workflow_dispatch:
+
+jobs:
+  find-id:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installeer dependencies
+        run: pip install requests
+
+      - name: Zoek WK 2026 Tournament ID
+        run: |
+          python << 'EOF'
+          import requests
+
+          KEY = "${{ secrets.ODDSPAPI_KEY }}"
+          r = requests.get(
+              "https://api.oddspapi.io/v4/tournaments",
+              params={"sportId": 10, "apiKey": KEY}
+          )
+          tournaments = r.json()
+
+          print("\n=== Alle internationale toernooien ===")
+          keywords = ["world", "fifa", "cup", "mundial", "wm", "wk"]
+          for t in tournaments:
+              name = t.get("tournamentName", "").lower()
+              if any(kw in name for kw in keywords):
+                  print(f"ID: {t['tournamentId']:>6} | {t['tournamentName']}")
+
+          print("\n=== Alle toernooien (volledig) ===")
+          for t in sorted(tournaments, key=lambda x: x['tournamentName']):
+              print(f"ID: {t['tournamentId']:>6} | {t['tournamentName']}")
+          EOF
+        env:
+          ODDSPAPI_KEY: ${{ secrets.ODDSPAPI_KEY }}
