@@ -197,14 +197,8 @@ def run():
     print("=" * 55)
     print("  OddsPapi Odds ETL — WK2026 Pro Betting")
     print("=" * 55)
-
-    # Tournament ID ophalen (of uit env var)
-    # GitHub maskeert secrets als '***' in logs maar geeft ze correct door
-    # Toch valideren voor het geval het secret niet ingesteld is
-    wk_id_raw = os.environ.get("ODDSPAPI_WK_ID", "").strip()
-    if wk_id_raw and wk_id_raw.isdigit():
-        wk_id = int(wk_id_raw)
-        print(f"[1/3] WK tournament ID uit env: {wk_id}")
+# Tournament ID altijd automatisch ophalen
+wk_id = get_wk_tournament_id()
     else:
         if wk_id_raw:
             print(f"[1/3] ODDSPAPI_WK_ID niet geldig, automatisch zoeken...")
