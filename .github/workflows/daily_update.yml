@@ -18,8 +18,16 @@ jobs:
       - name: Installeer dependencies
         run: pip install requests supabase
 
-      - name: Run ETL
+      - name: Run StatsBomb + OpenFootball ETL
         run: python etl/fetch_combined.py
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+      - name: Run OddsPapi Odds ETL
+        run: python etl/fetch_odds.py
+        env:
+          SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
+          ODDSPAPI_KEY:    ${{ secrets.ODDSPAPI_KEY }}
+          ODDSPAPI_WK_ID:  ${{ secrets.ODDSPAPI_WK_ID }}
