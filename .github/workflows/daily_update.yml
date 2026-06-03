@@ -30,4 +30,4 @@ jobs:
           SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
           ODDSPAPI_KEY:    ${{ secrets.ODDSPAPI_KEY }}
-          ODDSPAPI_WK_ID:  ${{ secrets.ODDSPAPI_WK_ID }}
+    
